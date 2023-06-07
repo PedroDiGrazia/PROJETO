@@ -11,7 +11,7 @@ port(
 	cin: in std_logic;
 	Cout: out std_logic;
 	s1: buffer std_logic_vector(1 downto 0);
-	sig_A, sig_B, sig_AB, sig_F: buffer std_logic_vector(3 downto 0);
+	AND_AB, OR_AB, sig_F: buffer std_logic_vector(3 downto 0);
 	C, Z, V, N: buffer std_logic
 	);
 end Alu;
@@ -30,52 +30,41 @@ architecture Logic of Alu is
 		
 signal SOMA: std_logic_vector(3 downto 0);				--DECLARAÇÃO DA SOMA E DA SUBTRAÇÃO E DO CARRY
 signal SUBTRACAO: std_logic_vector(3 downto 0);			--PARA O PORT MAP DO RIPPLE CARRY
-signal car: std_logic_vector(1 to 3);
+signal car: std_logic_vector(1 to 4);
 
 begin 
-        st1: RippleCarry port map(cin, A, B, SOMA, car(1));			--SOMADOR
-        st2: RippleCarry port map(cin, A, -B, SUBTRACAO, Cout);	--SUBTRATOR
+        SOMADOR: RippleCarry port map(cin, A, B, SOMA, car(1));			--SOMADOR
+        SUBTRATOR: RippleCarry port map(cin, A, -B, SUBTRACAO, Cout);	--SUBTRATOR
 		  
 	process (s, SOMA, SUBTRACAO, C, N, f, A, B)
 	
 begin
-   sig_AB(3) <= A(3) and B(3);			
-	sig_A <= std_logic_vector(unsigned(A));
-	sig_B <= std_logic_vector(unsigned(B));
+   AND_AB(3) <= A(3) and B(3);
+	OR_AB(3) <= A(3) OR B (3);	
 	sig_f(3) <= F(3);
 	
-	if f = "0000" then			--LOGICA PARA O Z
-		Z <= '1';
-	else
-		Z <= '0';
-	end if;
+	N <= F(3);
 	
-	if s="00"then					--LOGICA PARA A SOMA
-		if sig_AB(3) = '1' then		--LOGICA PARA O CARRY
-			C <= '1';
+	if s="00"then					--LOGICA PARA OVERFLOW NA SOMA
+		if OR_AB(3) /= sig_F(3) then
+			V <= '1';
 		else
-			C <= '0';
+			V <= '0';
 		end if;
-	elsif s= "10"then			   --LOGICA PARA A SUBTRAÇÃO
-		C <= '0';
-		if sig_B - sig_A > "1000" then		--LOGICA PARA O N
-			N <= '1';
-			if sig_F(3) = '1' then
-				N <= '1';
-			else
-				N <= '0';
-			end if;
+	elsif s="10"then	--LOGICA PARA OVERFLOW NA SUBTRAÇÃO
+		V <= '0';
+		if AND_AB(3) /= sig_F(3) then
+			V <= '1';
 		else
-			N <= '0';
+			V <= '0';
 		end if;
-	else 
-		N <= '0';
-		C <= '0';
+	else
+		V <= '0';
 	end if;
 	
 	case s is
 	
-	when "00" => f <= SOMA;			--RESULTADOS COM BASE EM S
+	when "00" => f <= SOMA;			--OPERAÇÕES REALIZADAS COM BASE NO VALOR DE F
 	
 	when "01" => f <= (A and B);
 
@@ -87,4 +76,12 @@ begin
 	
 	end process;
 	
+	with f select			--LOGICA PARA O Z
+	Z <= '1' when "0000",
+		  '0' when others;
+		  
+	with s select			--LOGICA PARA O CARRYOUT (C)
+	C <= AND_AB(3) when "00",
+		  '0' when others;
+		  
 end Logic;			--FIM DO PROGRAMA!
